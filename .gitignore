@@ -1,0 +1,22 @@
+# Ignore package registry secrets globally
+.npmrc
+**/.npmrc
+
+# Ignore backend & frontend environment files dynamically
+.env
+.env.local
+.env.dev
+.env.production
+**/.env*
+
+# Ignore wrangler credentials
+.wrangler/
+wrangler.toml
+
+# Ignore build artifacts and dependencies in all workspaces
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+build/
+.turbo/
