@@ -40,3 +40,4 @@ lerna-debug.log*
 
 dist/
 build/
+/generated/prisma

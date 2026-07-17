@@ -3,6 +3,9 @@ import { PrismaClient } from '@prisma/client/edge'
 import { withAccelerate } from '@prisma/extension-accelerate'
 import { decode, sign , verify } from 'hono/jwt'
 import { updateBlogSchema, createBlogSchema } from '@sakshi8624/common';
+// import DOMPurify from 'isomorphic-dompurify';
+import { transform } from 'ultrahtml';
+import sanitize from 'ultrahtml/transformers/sanitize';
 
 
 
@@ -47,6 +50,12 @@ blogRouter.use("/*",async (c,next)=>{
 blogRouter.post('/', async(c) => {
     const userId=c.get('userId') // middleware extracts the userid and pass it down to route handler
     const body= await c.req.json();
+
+    // XSS Sanitization Boundary: Strip tags out completely
+    const cleanTitle = body.title ? await transform(body.title, [sanitize({ dropElements: ['script', 'style'] })]) 
+            : undefined;
+        const cleanContent = body.content ?  await transform(body.content, [sanitize({ dropElements: ['script', 'style'] })]) 
+            : undefined; 
     const prisma = new PrismaClient({
      accelerateUrl: c.env.ACCELERATE_URL,
     }).$extends(withAccelerate()) 
@@ -59,10 +68,10 @@ blogRouter.post('/', async(c) => {
         })
       }
 
-    const post = await prisma.post.create({
+    const post = await prisma.post.create({ 
 		data: {
-			title: body.title,
-			content: body.content,
+			title: cleanTitle,
+			content: cleanContent,
 			authorId: Number(userId)
 		}
 	});
@@ -89,16 +98,20 @@ blogRouter.put('/', async (c) => {
             msg: "inputs not correct"
             })
         }
+        const cleanTitle = body.title ? await transform(body.title, [sanitize({ dropElements: ['script', 'style'] })]) 
+            : undefined;
+        const cleanContent = body.content ?  await transform(body.content, [sanitize({ dropElements: ['script', 'style'] })]) 
+            : undefined; 
         
         // CRITICAL: Added 'await' here
         const updatedPost = await prisma.post.update({
             where: {
-                id: body.id,
+                id: Number(body.id), 
                 authorId: Number(userId) // ensure our db uses int for authorId, not String
             },
             data: {
-                title: body.title,
-                content: body.content
+                title: cleanTitle,
+                content: cleanContent
             }
         });
 
@@ -110,27 +123,54 @@ blogRouter.put('/', async (c) => {
         return c.text('Post not found or unauthorized');
     }})
 
-// /---------------------------//
-// pagination
 blogRouter.get('/bulk', async (c) => {
     // const body= await c.req.json();
     const prisma = new PrismaClient({
     accelerateUrl: c.env.ACCELERATE_URL,
     }).$extends(withAccelerate()) 
 
-    const blogs= await prisma.post.findMany({
-        select:{
-            content:true,
-            title:true,
-            id:true,
-            author:{
-                select:{
-                    name:true
+    // Parse optional query parameters: e.g., /api/v1/blog/bulk?cursor=5
+    const cursorParam = c.req.query("cursor");
+    const limit = 5; // Size boundary per payload frame
+
+    try {
+        const blogs = await prisma.post.findMany({
+            take: limit + 1, // Fetch an extra record to peek if there's a next page
+            ...(cursorParam ? { 
+                skip: 1, // Skip the pivot post itself so it isn't duplicated
+                cursor: { id: Number(cursorParam) } 
+            } : {}),
+            select: {
+                content: true,
+                title: true,
+                id: true,
+                author: {
+                    select: { name: true }
                 }
+            },
+            orderBy: {
+                id: "desc" // Display the freshest blogs first
             }
-        }
-    });
-    return c.json(blogs);
+        });
+
+        // Determine if an additional data page exists downstream
+        const hasNextPage = blogs.length > limit;
+        
+        // Trim the control check record if it exists
+        const payload = hasNextPage ? blogs.slice(0, limit) : blogs;
+        
+        // Extract the target cursor pointer identifier for the next extraction loop
+        const nextCursor = hasNextPage ? payload[payload.length - 1].id : null;
+
+        return c.json({
+            blogs: payload,
+            nextCursor: nextCursor
+        });
+    } catch (e) {
+        console.error(e);
+        c.status(500);
+        return c.json({ error: "Failed to query serverless edge data." });
+    }
 })
 
 blogRouter.get('/:id', async (c) => {

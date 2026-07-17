@@ -1,8 +1,11 @@
-generator client {
-  // --------------------------changed this--------------------------
-  provider = "prisma-client-js"
-  // output   = "../generated/prisma"
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
 
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -20,8 +23,9 @@ model User {
 model Post {
   id        Int     @id @default(autoincrement())
   title     String
-  content   String?
+  content   String
   published Boolean @default(false)
   authorId  Int
   author    User    @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
 }

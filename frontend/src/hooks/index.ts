@@ -51,11 +51,14 @@ export const useBlog = ({ id }: { id: string }) => {
     return { loading, blog,setBlog };
 };
 
-// 2. Bulk Blogs Fetching Hook
+// 2. Bulk Blogs Fetching Hook with cursor based pagination
 export const useBlogs = () => {
     const [loading, setLoading] = useState(true);
     const [blogs, setBlogs] = useState<Blog[]>([]); // Starts safely as []
-
+    const [loadingMore, setLoadingMore] = useState(false); // tracks append state
+    const [nextCursor, setNextCursor] = useState<number | null>(null); // tracks pagination position
+   
+    // initial load - first page
     useEffect(() => {
         axios.get(`${BACKEND_URL}/api/v1/blog/bulk`, {
             headers: {
@@ -65,13 +68,17 @@ export const useBlogs = () => {
         .then(response => {
             // FIX: Fallback chaining guarantees a valid array is always assigned
             const dataReceived = response.data.blogs || response.data.posts || response.data;
+            const cursorReceived = response.data.nextCursor;
             
             if (Array.isArray(dataReceived)) {
                 setBlogs(dataReceived);
+            } else if (dataReceived && Array.isArray(dataReceived.blogs)) {
+                setBlogs(dataReceived.blogs);
             } else {
                 console.error("Backend did not return an array layout:", response.data);
                 setBlogs([]); // Fallback to safe array to prevent front-end maps from crashing
             }
+            setNextCursor(cursorReceived !== undefined ? cursorReceived : null);
             setLoading(false);
         })
         .catch(err => {
@@ -81,8 +88,44 @@ export const useBlogs = () => {
         });
     }, []);
 
+
+    // Action Worker: Fetches the next page using the nextCursor token
+    const fetchMoreBlogs = async () => {
+        if (!nextCursor || loadingMore) return; // Prevent duplicate requests or final boundary breaches
+
+        setLoadingMore(true);
+        try {
+            const response = await axios.get(`${BACKEND_URL}/api/v1/blog/bulk?cursor=${nextCursor}`, {
+                headers: {
+                    Authorization: localStorage.getItem("token")
+                }
+            });
+
+            const dataReceived = response.data.blogs || response.data.posts || response.data;
+            const cursorReceived = response.data.nextCursor;
+
+            let newBlogs: Blog[] = [];
+            if (Array.isArray(dataReceived)) {
+                newBlogs = dataReceived;
+            } else if (dataReceived && Array.isArray(dataReceived.blogs)) {
+                newBlogs = dataReceived.blogs;
+            }
+
+            // Append the fresh posts directly to the existing blogs list array
+            setBlogs(prev => [...prev, ...newBlogs]);
+            setNextCursor(cursorReceived !== undefined ? cursorReceived : null);
+        } catch (err) {
+            console.error("Error fetching more paginated blogs:", err);
+        } finally {
+            setLoadingMore(false);
+        }
+    };
+
     return {
         loading,
-        blogs
+        loadingMore,   // ✅ Exposed to show small loading spinners on the load-more button
+        blogs,
+        nextCursor,    // ✅ Exposed to conditionally hide/show the button in the UI
+        fetchMoreBlogs // ✅ Exposed trigger function for the UI button's onClick event
     };
 };

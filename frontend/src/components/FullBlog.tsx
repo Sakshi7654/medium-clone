@@ -1,9 +1,34 @@
 import { type Blog } from "../hooks/index"
 import { Appbar } from "./Appbar"
 import { Avatar } from "./BlogCard"
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 
+const CATCHPHRASES = [
+    "Crafted to command attention instantly and sustain engagement down to the very last line.",
+    "Engineered to maximize reader conversion and retention through clear, impactful structural hierarchy.",
+    "A compelling breakdown designed to seize attention and spark deep curiosity from the first sentence.",
+    "Masterfully written to grip the audience with high-impact, value-driven insights.",
+    "Hooks the reader immediately with an authoritative blend of precision and narrative flow."
+];
+
 export const FullBlog = ({ blog }: { blog: Blog }) => {
+    // const formattedDate = useMemo(() => {
+    //     // Fallback gracefully if backend cache returns null or empty string temporarily
+    //     if (!blog.createdAt) return "Published recently";
+        
+    //     return `Posted on ${new Date(blog.createdAt).toLocaleDateString("en-GB", {
+    //         day: "numeric",
+    //         month: "long",
+    //         year: "numeric"
+    //     })}`;
+    // }, [blog.createdAt]);
+
+    // Pick a consistent catchphrase for this specific blog using its numeric ID
+    const catchphrase = useMemo(() => {
+        const index = Math.abs(blog.id) % CATCHPHRASES.length;
+        return CATCHPHRASES[index];
+    }, [blog.id]);
     return (
         <div className="min-h-screen bg-white">
             <Appbar />
@@ -21,7 +46,7 @@ export const FullBlog = ({ blog }: { blog: Blog }) => {
                                     {blog.title}
                                 </h1>
                                 <div className="text-slate-400 pt-3 text-sm font-medium">
-                                    Posted on 2nd December 2023
+                                    {/* Posted on 2nd December 2023 */}
                                 </div>
                             </div>
                             
@@ -53,7 +78,7 @@ export const FullBlog = ({ blog }: { blog: Blog }) => {
                                     {blog.author.name || "Anonymous"}
                                 </div>
                                 <div className="pt-2 text-slate-500 text-sm leading-relaxed">
-                                    Random catch phrase about the author's ability to grab the user's attention
+                                    "{catchphrase}"
                                 </div>
                             </div>
                         </div>  

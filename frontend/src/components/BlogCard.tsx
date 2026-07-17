@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useMemo } from "react";
 interface BlogCardProps {
     authorName: string;
     title: string;
@@ -7,6 +8,14 @@ interface BlogCardProps {
     id: number;
 }
 
+const CATCHPHRASES = [
+    "Crafted to command attention instantly and sustain engagement down to the very last line.",
+    "Engineered to maximize reader conversion and retention through clear, impactful structural hierarchy.",
+    "A compelling breakdown designed to seize attention and spark deep curiosity from the first sentence.",
+    "Masterfully written to grip the audience with high-impact, value-driven insights.",
+    "Hooks the reader immediately with an authoritative blend of precision and narrative flow."
+];
+
 export const BlogCard = ({
     id,
     authorName,
@@ -14,6 +23,15 @@ export const BlogCard = ({
     content,
     publishedDate
 }: BlogCardProps) => {
+    const formattedDate = new Date(publishedDate).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric"
+    });
+    const catchphrase = useMemo(() => {
+        const index = Math.abs(id) % CATCHPHRASES.length;
+        return CATCHPHRASES[index];
+    }, [id])
     return <Link to={`/blog/${id}`}>
         <div className="p-4 border-b border-slate-200 pb-4 w-screen max-w-screen-md cursor-pointer">
             <div className="flex">
@@ -23,7 +41,7 @@ export const BlogCard = ({
                     <Circle />
                 </div>
                 <div className="pl-2 font-thin text-slate-500 text-sm flex justify-center flex-col">
-                    {publishedDate}
+                    {/* {formattedDate}   to do //////// */}
                 </div>
             </div>
             <div className="text-xl font-semibold pt-2">

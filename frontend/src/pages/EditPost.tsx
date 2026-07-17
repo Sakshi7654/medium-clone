@@ -101,20 +101,15 @@ export const EditPost = () => {
 function TextEditor({ value, onChange }: { value: string; onChange: (e: any) => void }) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-    // Auto-resizing block
+    // Optimized auto-resizing block without double-event conflicts
     useEffect(() => {
         const textarea = textareaRef.current;
         if (!textarea) return;
 
-        const adjustHeight = () => {
-            textarea.style.height = "auto"; 
-            textarea.style.height = `${textarea.scrollHeight}px`; 
-        };
-
-        adjustHeight(); // Initial check for populated text strings
-        textarea.addEventListener("input", adjustHeight);
-        return () => textarea.removeEventListener("input", adjustHeight);
-    }, [value]);
+        // Directly adjust height using the reactive value prop change
+        textarea.style.height = "auto"; 
+        textarea.style.height = `${textarea.scrollHeight}px`; 
+    }, [value]); // Triggers smoothly on state change, no manual listener required
 
     return (
         <div className="w-full mt-2">
